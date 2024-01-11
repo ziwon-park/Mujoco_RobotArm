@@ -2,6 +2,13 @@
   <compiler angle="radian"/>
   <option gravity="0 0 0"/> 
 
+  <actuator>
+      <motor joint="J0" name="J0"/>
+      <motor joint="J1" name="J1"/>
+      <motor joint="J2" name="J2"/>
+      <motor joint="J3" name="J3"/>
+      <motor joint="J4" name="J4"/>
+  </actuator>
   
   <asset>
     <mesh name="BASE" file="BASE.STL"/>
@@ -11,32 +18,38 @@
     <mesh name="LOWER_WRIST" file="LOWER_WRIST.STL"/>
     <mesh name="UPPER_WRIST" file="UPPER_WRIST.STL"/>
   </asset>
+
   <worldbody>
+    <site name="x_axis" pos="0 0.5 0" size="0.005 0.5" rgba="0 1 0 1" type="cylinder" quat="0.707 0.707 0 0"/>
+    <site name="y_axis" pos="0.5 0 0" size="0.005 0.5" rgba="1 0 0 1" type="cylinder" quat="0.707 0 0.707 0"/>
+    <site name="z_axis" pos="0 0 0.5" size="0.005 0.5" rgba="0 0 1 1" type="cylinder"/>
+    <site name="destination" pos="0.2 0.2 0.2" size="0.01" rgba="1 1 1 1"/>
+
     <geom type="mesh" mesh="BASE"/>
     <body name="SHOULDER" pos="0 0 0.12825">
       <inertial pos="2.477e-05 0.0221353 0.0993769" quat="0.972429 0.233194 -0.000430944 0.00108761" mass="0.959744" diaginertia="0.00165947 0.00158128 0.000717195"/>
       <joint name="J0" pos="0 0 0" axis="0 0 1" range="-2.76 2.76"/>
-      <geom type="mesh" mesh="SHOULDER" rgba="0.7 0.7 0.7 0.3"/>
+      <geom type="mesh" mesh="SHOULDER" rgba="0.7 0.7 0.7 0.5"/>
       <site name="J0_sensor" pos="0 0 0" rgba="1 0 0 1"/>
       <body name="ARM" pos="0 -0.03 0.115" quat="0.707105 0.707108 0 0">
         <inertial pos="0.029983 0.211548 0.0453031" quat="0.534676 0.467794 -0.46336 0.529706" mass="1.17756" diaginertia="0.0115237 0.0114928 0.000839712"/>
         <joint name="J1" pos="0 0 0" axis="0 0 1" range="-2.76 2.76"/>
-        <geom type="mesh" mesh="ARM" rgba="0.7 0.7 0.7 0.3"/>
+        <geom type="mesh" mesh="ARM" rgba="0.7 0.7 0.7 0.5"/>
         <site name="J1_sensor" pos="0 0 0" rgba="1 0 0 1"/>
         <body name="FOREARM" pos="0 0.28 0" quat="-3.67321e-06 -1 0 0">
           <inertial pos="0.0301559 0.0950221 0.0073555" quat="0.523543 0.49139 -0.473675 0.50997" mass="0.597677" diaginertia="0.00169754 0.00163253 0.000291376"/>
           <joint name="J2" pos="0 0 0" axis="0 0 1" range="-2.76 2.76"/>
-          <geom type="mesh" mesh="FOREARM" rgba="0.7 0.7 0.7 0.3"/>
+          <geom type="mesh" mesh="FOREARM" rgba="0.7 0.7 0.7 0.5"/>
           <site name="J2_sensor" pos="0 0 0" rgba="1 0 0 1"/>
           <body name="LOWER_WRIST" pos="0 -0.14 0.02" quat="0.707105 0.707108 0 0">
             <inertial pos="0.00575149 0.0100044 0.0871921" quat="0.700403 -0.13124 -0.134345 0.688595" mass="0.526934" diaginertia="0.000785199 0.000756398 0.000275722"/>
             <joint name="J3" pos="0 0 0" axis="0 0 1" range="-2.67 2.67"/>
-            <geom type="mesh" mesh="LOWER_WRIST" rgba="0.7 0.7 0.7 0.3"/>
+            <geom type="mesh" mesh="LOWER_WRIST" rgba="0.7 0.7 0.7 0.5"/>
             <site name="J3_sensor" pos="0 0 0" rgba="1 0 0 1"/>
             <body name="UPPER_WRIST" pos="0.0285 0 0.105" quat="0.707105 0 0.707108 0">
               <inertial pos="0.0805652 0.00980409 0.018728" quat="0.00431726 0.708285 -4.18922e-06 0.705913" mass="0.580973" diaginertia="0.00108466 0.00106374 0.000212638"/>
               <joint name="J4" pos="0 0 0" axis="0 0 1" range="-2.67 2.67"/>
-              <geom type="mesh" mesh="UPPER_WRIST" rgba="0.7 0.7 0.7 0.3"/>
+              <geom type="mesh" mesh="UPPER_WRIST" rgba="0.7 0.7 0.7 0.5"/>
               <site name="J4_sensor" pos="0 0 0" rgba="1 0 0 1"/>
             </body>
           </body>

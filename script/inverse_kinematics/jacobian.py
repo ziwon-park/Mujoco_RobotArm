@@ -22,12 +22,12 @@ viewer = MjViewer(sim)
 joint_names = ['J0', 'J1', 'J2', 'J3', 'J4']
 
 joint_indices = [model.joint_names.index(name) for name in joint_names]
-x_desired = [-0.25, -0.25, -0.4]
+x_desired = [0.2,0.2,0.2]
 
 # PD parameters
-Kp = 5000
-Kd_joint = 0.05
-Kd = 0.0
+Kp = 10
+Kd_joint = 1
+Kd = 5
 prev_error = 0  
 dt = 1.0 / 60.0  # Assuming 60 Hz simulation frequency
 
