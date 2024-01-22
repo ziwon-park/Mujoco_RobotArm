@@ -2,6 +2,7 @@ import os
 import numpy as np
 from mujoco_py import load_model_from_path, MjSim, MjViewer
 import mujoco
+import time
  
 from utils import compute
 
@@ -21,8 +22,10 @@ class RobotSimulator:
         self.Ki = 0.1
         self.integral_error = np.zeros(3)
         self.Kd = 0.0
+        self.error = 0
         self.prev_error = 0
         self.dt = 1.0 / 60.0  
+        self.angle = np.zeros(len(self.joint_indices))
         self.prev_angles = np.zeros(len(self.joint_indices))
 
         self.offset = offset
@@ -33,29 +36,32 @@ class RobotSimulator:
         self.q_prev = [0 for i in range(7)]
         self.marked_positions = []
     
-    def write_marker(self, FK_position, Desired_position):
-            self.viewer.add_marker(pos=(np.array([0,0,0])),
-                                label="mujoco orientation", size=np.array([.01, .01, .01]))
-            self.viewer.add_marker(pos=([-self.x_current[0], -self.x_current[1], self.x_current[2]]),
-                                label=FK_position, size=np.array([.01, .01, .01]), rgba=np.array([1,0,0,1]), type=2)
-            self.viewer.add_marker(pos=([-self.x_desired[0], -self.x_desired[1], self.x_desired[2]]),
-                                label=Desired_position, size=np.array([.01, .01, .01]), rgba=np.array([0,1,0,1]), type=2)
-            
-            self.render_trajectory()
+    def write_marker(self):
+        FK_position = (f"FK :{float(self.x_current[0]):.2f}, {float(self.x_current[1]):.2f}, {float(self.x_current[2]):.2f}")
+        Desired_position = (f"Desired :{float(self.x_desired[0]):.2f}, {float(self.x_desired[1]):.2f}, {float(self.x_desired[2]):.2f}")
+
+        self.viewer.add_marker(pos=(np.array([0,0,0])),
+                            label="mujoco orientation", size=np.array([.01, .01, .01]))
+        self.viewer.add_marker(pos=([-self.x_current[0], -self.x_current[1], self.x_current[2]]),
+                            label=FK_position, size=np.array([.01, .01, .01]), rgba=np.array([1,0,0,1]), type=2)
+        self.viewer.add_marker(pos=([-self.x_desired[0], -self.x_desired[1], self.x_desired[2]]),
+                            label=Desired_position, size=np.array([.01, .01, .01]), rgba=np.array([0,1,0,1]), type=2)
+        
+        self.render_trajectory()
         
     def F_calcalator(self, angle):
-        error = np.array(self.x_desired) - self.x_current
-        self.integral_error += error * self.dt
-        print("error is :", np.linalg.norm(error))
+        self.error = np.array(self.x_desired) - self.x_current
+        self.integral_error += self.error * self.dt
+        print("error is :", np.linalg.norm(self.error))
 
         angle_errors = angle - self.prev_angles
         tau_d = self.Kd_joint * angle_errors / self.dt
         self.prev_angles = angle
-        derivative = (error - self.prev_error) / self.dt
+        derivative = (self.error - self.prev_error) / self.dt
 
-        F = self.Kp * error + self.Ki * self.integral_error # PD, PI control
+        F = self.Kp * self.error + self.Ki * self.integral_error # PD, PI control
         # F = self.Kp * error # only PD control
-        return F, error
+        return F
     
     def add_marker(self, pos):
         # pos[2] = pos[2]+1.35
@@ -75,75 +81,91 @@ class RobotSimulator:
         for i, joint_idx in enumerate(self.joint_indices):
             self.sim.data.ctrl[joint_idx] = tau[i]
 
-    def reset_simulation(self)
+    def move_robot_to_position(self, position):
+        self.angle = self.sim.data.qpos.copy()
+        self.x_current = compute.compute_xc(self.angle)
+        F = self.F_calcalator(self.angle)
+        self.prev_error = self.error  
+        J = compute.compute_jacobian(self.angle, self.rows, self.cols)
+        tau = J.T.dot(F) - 100*(self.angle - np.array(self.q_prev)) 
+        self.move_robot(tau)
+
+        self.write_marker()
+
+    def reset_simulation(self):
+        self.sim.reset()
 
     def run_simulation(self):
-        start_point = [0.3, -0.4, -0.3] 
+        reached_point = False
+        start_time = time.time()
 
-        offset_length = 0.0001       
-        num_points = 40    
-        threshold = 0.1
-
-        reached_start_point = False
+        start_point = [0.15, -0.15, -0.65] 
 
         self.x_desired = start_point # desired point 초기화
 
-        sim_state = self.sim.get_state()
-            
-        np.set_printoptions(precision=3)
- 
+        update_count = 0
+        max_updates = 50
 
-        while True:
+        while reached_point is False: # 초기 위치로 이동 
+            self.angle = self.sim.data.qpos.copy()
+            self.move_robot_to_position(self.x_desired)
+
+            self.q_prev = self.angle
+            self.sim.step()
+            self.viewer.render()
+
+            if np.linalg.norm(self.error) < 0.06:
+                print("near enough")
+                reached_point = True
+
+
+        while True: 
+            current_time = time.time()
+            np.set_printoptions(precision=3)
 
             print("desired point is :", self.x_desired)
 
-            #### Get q positions
+            # if current_time - start_time > 5:
+            #     if not reached_point:
+            #         print("5 second passed")
+            #         return False
+            #     else:
+            #         break
 
-            angle = self.sim.data.qpos.copy()
+            self.angle = self.sim.data.qpos.copy() 
         
             for i in range(7):
-                angle[i] = angle[i] - self.offset[i]
+                self.angle[i] = self.angle[i] - self.offset[i]
 
-            qr1, qr2, qr3, qr4, qr5, qr6, qr7 = angle
+            qr1, qr2, qr3, qr4, qr5, qr6, qr7 = self.angle
 
-            #### Get end effector position
+            self.move_robot_to_position(self.x_desired)
 
-            self.x_current = compute.compute_xc(angle)
-
-            #### PID controller
-
-            F, error = self.F_calcalator(angle)
-
-            if np.all(abs(self.prev_error - error) < 0.000001):
-                reached_start_point = True
-
-
-            self.prev_error = error  
-            J = compute.compute_jacobian(angle, self.rows, self.cols)
-            tau = J.T.dot(F) - 100*(angle - np.array(self.q_prev)) 
-
-            #### Move Robot
-
-            self.move_robot(tau)
-
-            FK_position = (f"FK :{float(self.x_current[0]):.2f}, {float(self.x_current[1]):.2f}, {float(self.x_current[2]):.2f}")
-            Desired_position = (f"Desired :{float(self.x_desired[0]):.2f}, {float(self.x_desired[1]):.2f}, {float(self.x_desired[2]):.2f}")
-
-            #### Mujoco Markers for Visualization
-
-            self.write_marker(FK_position, Desired_position)
-
-            ####
-
-            self.q_prev = angle
+            self.q_prev = self.angle
             self.sim.step()
             self.viewer.render()
+
+            #### 
+            if np.linalg.norm(self.error) < 0.06:
+                print("near enough (not initial loop)")
+                reached_point = True
+                    
+                if update_count < max_updates:
+                    self.x_desired[0] = self.x_desired[0] - 0.01
+                    update_count += 1
+                else:
+                    return False
+            # return True
             
  
 mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/mjmodel.xml"
-
 offset = [0,0,0,0,0,0,0]
 
-
 robot_sim = RobotSimulator(mjcf_path, offset)
-robot_sim.run_simulation()
+
+experiment_count = 10
+
+for _ in range(experiment_count):
+    robot_sim.reset_simulation()
+    robot_sim.run_simulation()
+
