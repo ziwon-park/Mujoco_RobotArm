@@ -5,7 +5,7 @@
     <default>
         <motor ctrllimited="false"/>
         <default class="default_joint">
-            <joint damping="0.01"  frictionloss="7" />
+            <joint damping="0.01"  frictionloss="6" />
         </default> 
         <default class="viz">
             <geom contype="0" conaffinity="0" group="1" type="mesh"/>
@@ -29,3 +29,4 @@
         <map stiffness="10" znear="0.05"/>
     </visual>
 </mujoco>
+

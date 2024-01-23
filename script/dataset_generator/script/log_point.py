@@ -1,8 +1,11 @@
 import os
+import shutil
+
 import numpy as np
 from mujoco_py import load_model_from_path, MjSim, MjViewer
 import mujoco
-import time
+import time, datetime
+import csv
  
 from utils import compute
 
@@ -34,7 +37,12 @@ class RobotSimulator:
         self.cols = 7
 
         self.q_prev = [0 for i in range(7)]
+        self.q_values = None
         self.marked_positions = []
+
+        self.create_output_folder()
+        self.reset_q_values()
+
     
     def write_marker(self):
         FK_position = (f"FK :{float(self.x_current[0]):.2f}, {float(self.x_current[1]):.2f}, {float(self.x_current[2]):.2f}")
@@ -95,6 +103,29 @@ class RobotSimulator:
     def reset_simulation(self):
         self.sim.reset()
 
+    def reset_q_values(self):
+        self.q_values = [[] for _ in range(7)]
+
+    def save_q_values(self, sequence_number):
+        for i in range(7):
+            filename = os.path.join(self.output_folder, f"free_joint_{i+1}.csv")
+            with open(filename, 'a', newline='') as file:
+                writer = csv.writer(file)
+                # writer.writerow([sequence_number] + self.q_values[i])
+                writer.writerow(self.q_values[i])
+
+    def create_output_folder(self):
+        # current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        current_time = "temp"
+        self.output_folder = f"../csv/temp/{current_time}"
+
+        # remove existing folder
+        if os.path.exists(self.output_folder):
+            shutil.rmtree(self.output_folder)
+
+        os.makedirs(self.output_folder, exist_ok=True)
+
+
     def run_simulation(self):
         reached_point = False
         start_time = time.time()
@@ -105,6 +136,8 @@ class RobotSimulator:
 
         update_count = 0
         max_updates = 50
+
+        self.reset_q_values()
 
         while reached_point is False: # 초기 위치로 이동 
             self.angle = self.sim.data.qpos.copy()
@@ -136,8 +169,7 @@ class RobotSimulator:
         
             for i in range(7):
                 self.angle[i] = self.angle[i] - self.offset[i]
-
-            qr1, qr2, qr3, qr4, qr5, qr6, qr7 = self.angle
+                self.q_values[i].append(self.angle[i])
 
             self.move_robot_to_position(self.x_desired)
 
@@ -163,9 +195,9 @@ offset = [0,0,0,0,0,0,0]
 
 robot_sim = RobotSimulator(mjcf_path, offset)
 
-experiment_count = 10
+sequence_count = 10
 
-for _ in range(experiment_count):
-    robot_sim.reset_simulation()
+for sequence_number in range(sequence_count):
     robot_sim.run_simulation()
-
+    robot_sim.save_q_values(sequence_number)
+    robot_sim.reset_simulation()
