@@ -37,11 +37,12 @@ class RobotSimulator:
         self.cols = 7
 
         self.q_prev = [0 for i in range(7)]
+        self.tau_values = None
         self.q_values = None
         self.marked_positions = []
 
         self.create_output_folder()
-        self.reset_q_values()
+        self.reset_values()
 
     
     def write_marker(self):
@@ -96,35 +97,44 @@ class RobotSimulator:
         self.prev_error = self.error  
         J = compute.compute_jacobian(self.angle, self.rows, self.cols)
         tau = J.T.dot(F) - 100*(self.angle - np.array(self.q_prev)) 
+        # self.save_tau_values(tau)
+
+        for i in range(7):
+            self.tau_values[i].append(tau[i])
+
         self.move_robot(tau)
 
         self.write_marker()
 
     def reset_simulation(self):
         self.sim.reset()
+        self.tau_values = [] 
 
-    def reset_q_values(self):
+    def reset_values(self):
         self.q_values = [[] for _ in range(7)]
+        self.tau_values = [[] for _ in range(7)]
 
-    def save_q_values(self, sequence_number):
+    def save_values(self):
         for i in range(7):
-            filename = os.path.join(self.output_folder, f"free_joint_{i+1}.csv")
+            filename = os.path.join(self.input_data_folder, f"fre_position_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
-                # writer.writerow([sequence_number] + self.q_values[i])
                 writer.writerow(self.q_values[i])
 
+        for i in range(7):
+            filename = os.path.join(self.target_data_folder, f"fre_tau_{i+1}.csv")
+            with open(filename, 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(self.tau_values[i])
+
+
     def create_output_folder(self):
-        # current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        current_time = "temp"
-        self.output_folder = f"../csv/temp/{current_time}"
-
-        # remove existing folder
-        if os.path.exists(self.output_folder):
-            shutil.rmtree(self.output_folder)
-
-        os.makedirs(self.output_folder, exist_ok=True)
-
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        base_folder = f"../csv/joint_data/{current_time}"
+        self.input_data_folder = os.path.join(base_folder, "input_data")
+        self.target_data_folder = os.path.join(base_folder, "target_data")
+        os.makedirs(self.input_data_folder, exist_ok=True)
+        os.makedirs(self.target_data_folder, exist_ok=True)
 
     def run_simulation(self):
         reached_point = False
@@ -137,7 +147,7 @@ class RobotSimulator:
         update_count = 0
         max_updates = 50
 
-        self.reset_q_values()
+        self.reset_values()
 
         while reached_point is False: # 초기 위치로 이동 
             self.angle = self.sim.data.qpos.copy()
@@ -189,15 +199,15 @@ class RobotSimulator:
                     return False
             # return True
             
- 
+            
 mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/mjmodel.xml"
 offset = [0,0,0,0,0,0,0]
 
 robot_sim = RobotSimulator(mjcf_path, offset)
 
-sequence_count = 10
+sequence_count = 2
 
 for sequence_number in range(sequence_count):
     robot_sim.run_simulation()
-    robot_sim.save_q_values(sequence_number)
+    robot_sim.save_values()
     robot_sim.reset_simulation()
