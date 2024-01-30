@@ -37,6 +37,7 @@ class RobotSimulator:
         self.cols = 7
 
         self.q_prev = [0 for i in range(7)]
+        self.tau = None
         self.tau_values = None
         self.q_values = None
         self.marked_positions = []
@@ -96,19 +97,15 @@ class RobotSimulator:
         F = self.F_calcalator(self.angle)
         self.prev_error = self.error  
         J = compute.compute_jacobian(self.angle, self.rows, self.cols)
-        tau = J.T.dot(F) - 100*(self.angle - np.array(self.q_prev)) 
+        self.tau = J.T.dot(F) - 100*(self.angle - np.array(self.q_prev)) 
         # self.save_tau_values(tau)
 
-        for i in range(7):
-            self.tau_values[i].append(tau[i])
-
-        self.move_robot(tau)
-
+        self.move_robot(self.tau)
         self.write_marker()
+
 
     def reset_simulation(self):
         self.sim.reset()
-        self.tau_values = [] 
 
     def reset_values(self):
         self.q_values = [[] for _ in range(7)]
@@ -116,13 +113,13 @@ class RobotSimulator:
 
     def save_values(self):
         for i in range(7):
-            filename = os.path.join(self.input_data_folder, f"fre_position_{i+1}.csv")
+            filename = os.path.join(self.input_data_folder, f"fre_joint_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(self.q_values[i])
 
         for i in range(7):
-            filename = os.path.join(self.target_data_folder, f"fre_tau_{i+1}.csv")
+            filename = os.path.join(self.target_data_folder, f"fre_joint_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(self.tau_values[i])
@@ -180,6 +177,7 @@ class RobotSimulator:
             for i in range(7):
                 self.angle[i] = self.angle[i] - self.offset[i]
                 self.q_values[i].append(self.angle[i])
+                self.tau_values[i].append(self.tau[i])
 
             self.move_robot_to_position(self.x_desired)
 
@@ -205,7 +203,7 @@ offset = [0,0,0,0,0,0,0]
 
 robot_sim = RobotSimulator(mjcf_path, offset)
 
-sequence_count = 2
+sequence_count = 1000
 
 for sequence_number in range(sequence_count):
     robot_sim.run_simulation()
