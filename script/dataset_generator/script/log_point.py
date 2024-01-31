@@ -1,5 +1,6 @@
 import os
 import shutil
+from tqdm import tqdm
 
 import numpy as np
 from mujoco_py import load_model_from_path, MjSim, MjViewer
@@ -62,7 +63,7 @@ class RobotSimulator:
     def F_calcalator(self, angle):
         self.error = np.array(self.x_desired) - self.x_current
         self.integral_error += self.error * self.dt
-        print("error is :", np.linalg.norm(self.error))
+        # print("error is :", np.linalg.norm(self.error))
 
         angle_errors = angle - self.prev_angles
         tau_d = self.Kd_joint * angle_errors / self.dt
@@ -76,7 +77,7 @@ class RobotSimulator:
     def add_marker(self, pos):
         # pos[2] = pos[2]+1.35
         position = [-pos[0], -pos[1], pos[2]]
-        print("marker position is :", pos)
+        # print("marker position is :", pos)
         self.viewer.add_marker(pos=position, size=np.array([.01, .01, .01]), rgba=np.array([0,1,0,1]), label="", type=2)
 
     def render_trajectory(self):
@@ -155,7 +156,7 @@ class RobotSimulator:
             self.viewer.render()
 
             if np.linalg.norm(self.error) < 0.06:
-                print("near enough")
+                # print("near enough")
                 reached_point = True
 
 
@@ -163,7 +164,7 @@ class RobotSimulator:
             current_time = time.time()
             np.set_printoptions(precision=3)
 
-            print("desired point is :", self.x_desired)
+            # print("desired point is :", self.x_desired)
 
             # if current_time - start_time > 5:
             #     if not reached_point:
@@ -187,7 +188,7 @@ class RobotSimulator:
 
             #### 
             if np.linalg.norm(self.error) < 0.06:
-                print("near enough (not initial loop)")
+                # print("near enough (not initial loop)")
                 reached_point = True
                     
                 if update_count < max_updates:
@@ -203,9 +204,9 @@ offset = [0,0,0,0,0,0,0]
 
 robot_sim = RobotSimulator(mjcf_path, offset)
 
-sequence_count = 1000
+sequence_count = 5000
 
-for sequence_number in range(sequence_count):
+for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
     robot_sim.run_simulation()
     robot_sim.save_values()
     robot_sim.reset_simulation()
