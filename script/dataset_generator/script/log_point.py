@@ -102,7 +102,7 @@ class RobotSimulator:
         # self.save_tau_values(tau)
 
         self.move_robot(self.tau)
-        self.write_marker()
+        # self.write_marker()
 
 
     def reset_simulation(self):
@@ -199,14 +199,14 @@ class RobotSimulator:
             # return True
             
             
-mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/mjmodel.xml"
+mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
 offset = [0,0,0,0,0,0,0]
 
 robot_sim = RobotSimulator(mjcf_path, offset)
 
-sequence_count = 5000
+sequence_count = 10
 
 for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
     robot_sim.run_simulation()
-    robot_sim.save_values()
+    # robot_sim.save_values()
     robot_sim.reset_simulation()
