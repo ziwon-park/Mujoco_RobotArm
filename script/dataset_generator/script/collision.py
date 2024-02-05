@@ -7,6 +7,7 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 import mujoco
 import time, datetime
 import csv
+import random
  
 from utils import compute
 
@@ -48,6 +49,55 @@ class RobotSimulator:
 
         self.create_output_folder()
         self.reset_values()
+
+        # RING for COLLISION
+
+        self.random_step = 0
+        self.random_link = None
+
+
+
+    def update_ring_pose(self, pos, quat):
+        """Update the ring's position and orientation."""
+        mocap_id = self.sim.model.body_mocapid[self.sim.model.body_name2id('mocap_ring')]
+        self.sim.data.mocap_pos[mocap_id] = pos
+        self.sim.data.mocap_quat[mocap_id] = quat
+
+        # physical_id = self.sim.model.body_name2id("physical_ring")
+        # self.sim.model.body_pos[physical_id] = pos
+        
+    def update_physical_ring(self, sim, mocap_body_name, joint_name):
+        mocap_id = self.sim.model.body_mocapid[self.sim.model.body_name2id(mocap_body_name)]
+        mocap_pos = self.sim.data.mocap_pos[mocap_id]
+        mocap_quat = self.sim.data.mocap_quat[mocap_id]
+
+        joint_qpos_addr = self.sim.model.get_joint_qpos_addr(joint_name)
+        if isinstance(joint_qpos_addr, tuple):
+            start_index = joint_qpos_addr[0]
+        else:
+            start_index = joint_qpos_addr
+
+        self.sim.data.qpos[start_index:start_index+3] = mocap_pos
+        self.sim.data.qpos[start_index+3:start_index+7] = mocap_quat
+
+
+
+        self.sim.forward()
+
+
+    def get_link_pose(self, link_name):
+        pos = self.sim.data.get_body_xpos(link_name)
+        quat = self.sim.data.get_body_xquat(link_name)
+        return pos, quat
+    
+    def place_ring_at_link(self, link_name):
+        """Place the ring at the pose of the specified link."""
+        pos, quat = self.get_link_pose(link_name)
+        self.update_ring_pose(pos, quat)
+        self.update_physical_ring("mocap_ring","physical_ring", "physical_ring_joint")
+
+
+
 
     def load_desired_positions(self, csv_path):
         """Load desired positions from a CSV file."""
@@ -103,8 +153,8 @@ class RobotSimulator:
         for i, joint_idx in enumerate(self.joint_indices):
             self.sim.data.ctrl[joint_idx] = tau[i]
 
-    def move_robot_to_position(self, position):
-        self.angle = self.sim.data.qpos.copy()
+    def move_robot_to_position(self):
+        # self.angle = self.sim.data.qpos.copy()
         self.x_current = compute.compute_xc(self.angle)
         F = self.F_calcalator(self.angle)
         self.prev_error = self.error  
@@ -159,10 +209,23 @@ class RobotSimulator:
         self.current_sequence_index += 1 
         self.reset_values()
 
+        self.random_step = np.random.randint(1000)
+
+        step_count = 0
+
+
         while True: 
+            step_count += 1
+
+            if step_count == self.random_step:
+                link_name = np.random.choice(['link_3', 'link_5'])
+                print(link_name)
+                print("bump")
+                self.place_ring_at_link(link_name)
+
             current_time = time.time()
 
-            if current_time - start_time > 3:
+            if current_time - start_time > 5:
                 if not reached_point:
                     print("3 second passed")
                     return False
@@ -170,7 +233,9 @@ class RobotSimulator:
                     break
 
             self.angle = self.sim.data.qpos.copy() 
-            self.move_robot_to_position(self.x_desired)
+            self.angle = self.angle[:7] 
+            print(self.angle)
+            self.move_robot_to_position()
         
             for i in range(7):
                 self.angle[i] = self.angle[i] - self.offset[i]

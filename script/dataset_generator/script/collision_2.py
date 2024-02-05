@@ -49,6 +49,31 @@ class RobotSimulator:
         self.create_output_folder()
         self.reset_values()
 
+    def randomize_cube_position(self):
+        x_range = (-0.25, 0.25)
+        y_range = (0, 0.25)
+        z_range = (1.05, 1.15)
+        
+        cube_pos = np.array([np.random.uniform(*x_range),
+                            np.random.uniform(*y_range),
+                            np.random.uniform(*z_range)])
+
+        cube_id = self.sim.model.body_name2id("cube")
+        self.sim.model.body_pos[cube_id] = cube_pos
+
+    def check_collision(self, cube_name="cube"):
+        cube_geom_id = self.sim.model.geom_name2id(cube_name) 
+
+        for i in range(self.sim.data.ncon):
+            contact = self.sim.data.contact[i]
+            # 충돌하는 두 객체 중 하나라도 큐브인 경우
+            if contact.geom1 == cube_geom_id or contact.geom2 == cube_geom_id:
+                # 충돌하는 다른 객체의 이름을 얻습니다.
+                other_geom_id = contact.geom2 if contact.geom1 == cube_geom_id else contact.geom1
+                other_geom_name = self.sim.model.geom_id2name(other_geom_id)
+                # print(f"충돌 발생: {cube_name}와 {other_geom_name} 사이")
+
+
     def load_desired_positions(self, csv_path):
         """Load desired positions from a CSV file."""
         positions = []
@@ -159,6 +184,8 @@ class RobotSimulator:
         self.current_sequence_index += 1 
         self.reset_values()
 
+        self.randomize_cube_position()
+
         while True: 
             current_time = time.time()
 
@@ -171,6 +198,7 @@ class RobotSimulator:
 
             self.angle = self.sim.data.qpos.copy() 
             self.move_robot_to_position(self.x_desired)
+            self.check_collision()
         
             for i in range(7):
                 self.angle[i] = self.angle[i] - self.offset[i]
