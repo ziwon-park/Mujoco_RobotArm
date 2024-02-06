@@ -11,7 +11,7 @@ import csv
 from utils import compute
 
 class RobotSimulator:
-    def __init__(self, mjcf_path, offset):
+    def __init__(self, mjcf_path, offset, csv_path):
         self.model = load_model_from_path(mjcf_path)
         self.sim = MjSim(self.model)
         self.viewer = MjViewer(self.sim)
@@ -43,22 +43,28 @@ class RobotSimulator:
         self.q_values = None
         self.marked_positions = []
 
+        self.desired_positions = self.load_desired_positions(csv_path)
+        self.current_sequence_index = 0   
+
         self.collision_occurred = 0 
-        self.collision_link_number = 0 
+        self.collision_link_number = 0   
+
+        self.reached_point_num = 0
 
         self.create_output_folder()
         self.reset_values()
 
+
     def randomize_cube_position(self):
-        x_ranges = [(-0.2, -0.1), (0.1, 0.2)] 
-        x_range = (0.15, 0.35)
-        y_range = (0.16, 0.19)
+        x_ranges = [(-0.3, -0.1), (0.1, 0.3)] 
+        x_range = (-0.3, 0.3)
+        y_range = (0.13, 0.2)
         z_range = (0.75, 1.15)
         
         selected_x_range = np.random.choice([0, 1])
         x_pos = np.random.uniform(*x_ranges[selected_x_range])
         
-        x_pos = np.random.uniform(*x_range)
+        # x_pos = np.random.uniform(*x_range)
         y_pos = np.random.uniform(*y_range)
         z_pos = np.random.uniform(*z_range)
 
@@ -82,8 +88,16 @@ class RobotSimulator:
 
         return self.collision_occurred, self.collision_link_number
 
+    def load_desired_positions(self, csv_path):
+        """Load desired positions from a CSV file."""
+        positions = []
+        with open(csv_path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader)  # Skip header
+            for row in reader:
+                positions.append([float(row[i]) for i in range(3)]) 
+        return positions    
 
-    
     def write_marker(self):
         FK_position = (f"FK :{float(self.x_current[0]):.2f}, {float(self.x_current[1]):.2f}, {float(self.x_current[2]):.2f}")
         Desired_position = (f"Desired :{float(self.x_desired[0]):.2f}, {float(self.x_desired[1]):.2f}, {float(self.x_desired[2]):.2f}")
@@ -135,7 +149,6 @@ class RobotSimulator:
         self.prev_error = self.error  
         J = compute.compute_jacobian(self.angle, self.rows, self.cols)
         self.tau = J.T.dot(F) - 100*(self.angle - np.array(self.q_prev)) 
-        # self.save_tau_values(tau)
 
         self.move_robot(self.tau)
         self.write_marker()
@@ -153,13 +166,13 @@ class RobotSimulator:
             filename = os.path.join(self.input_data_folder, f"fre_joint_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow([self.collision_occurred, self.collision_link_number]+self.q_values[i])
+                writer.writerow([self.reached_point_num, self.collision_occurred, self.collision_link_number]+ self.q_values[i])
 
         for i in range(7):
             filename = os.path.join(self.target_data_folder, f"fre_joint_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow(self.tau_values[i])
+                writer.writerow([self.reached_point_num, self.collision_occurred, self.collision_link_number]+ self.tau_values[i])
 
 
     def create_output_folder(self):
@@ -172,85 +185,64 @@ class RobotSimulator:
 
     def run_simulation(self):
         reached_point = False
+
+        if self.current_sequence_index >= len(self.desired_positions):
+            print("All sequences have been simulated.")
+            return False  
+
         start_time = time.time()
 
-        start_point = [0.15, -0.15, -0.65] 
+        self.x_desired = self.desired_positions[self.current_sequence_index]  # Update desired position
+        # self.x_desired = [0.15, -0.15, -0.65] 
 
-        self.x_desired = start_point # desired point 초기화
-
-        update_count = 0
-        max_updates = 50
-
+        self.current_sequence_index += 1 
         self.reset_values()
         self.randomize_cube_position()
-
-        while reached_point is False: # 초기 위치로 이동 
-            self.angle = self.sim.data.qpos.copy()
-            self.move_robot_to_position(self.x_desired)
-
-            self.q_prev = self.angle
-            self.sim.step()
-            self.viewer.render()
-
-            if np.linalg.norm(self.error) < 0.06:
-                # print("near enough")
-                reached_point = True
 
 
         while True: 
             current_time = time.time()
-            np.set_printoptions(precision=3)
-
-            # print("desired point is :", self.x_desired)
 
             if current_time - start_time > 3:
                 if not reached_point:
-                    print("5 second passed")
+                    print("3 second passed")
                     return False
                 else:
                     break
 
             self.angle = self.sim.data.qpos.copy() 
+            self.move_robot_to_position(self.x_desired)
+            self.check_collision()
+
         
             for i in range(7):
                 self.angle[i] = self.angle[i] - self.offset[i]
                 self.q_values[i].append(self.angle[i])
                 self.tau_values[i].append(self.tau[i])
 
-            self.move_robot_to_position(self.x_desired)
-            self.check_collision()
-
             self.q_prev = self.angle
             self.sim.step()
             self.viewer.render()
 
-            #### 
-            if np.linalg.norm(self.error) < 0.06:
-                # print("near enough (not initial loop)")
+            if np.linalg.norm(self.error) < 0.05:
+                print("done")
                 reached_point = True
-                    
-                if update_count < max_updates:
-                    self.x_desired[0] = self.x_desired[0] - 0.01
-                    update_count += 1
-                else:
-                    return False
-            # return True
+                self.reached_point_num = 1
+                break 
+        
+        return True  
             
             
 mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
 offset = [0,0,0,0,0,0,0]
+csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/random_selected_data.csv"
 
-robot_sim = RobotSimulator(mjcf_path, offset)
+robot_sim = RobotSimulator(mjcf_path, offset,csv_path)
 
-sequence_count = 50
+sequence_count = 5000
 
 for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
-    robot_sim.run_simulation()
+    result = robot_sim.run_simulation()
+    print(robot_sim.reached_point_num)
     robot_sim.save_values()
     robot_sim.reset_simulation()
-
-
-# for sequence_number in range(sequence_count):
-#     robot_sim.run_simulation()
-#     robot_sim.save_values()
-#     robot_sim.reset_simulation()

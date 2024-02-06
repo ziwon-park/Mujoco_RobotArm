@@ -25,7 +25,7 @@ class RobotSimulator:
         self.Kd_joint = 0.0
         self.Ki = 0.1
         self.integral_error = np.zeros(3)
-        self.Kd = 0.0
+        self.Kd = 5.0
         self.error = 0
         self.prev_error = 0
         self.dt = 1.0 / 60.0  
@@ -162,7 +162,7 @@ class RobotSimulator:
         while True: 
             current_time = time.time()
 
-            if current_time - start_time > 3:
+            if current_time - start_time > 5:
                 if not reached_point:
                     print("3 second passed")
                     return False
@@ -181,7 +181,7 @@ class RobotSimulator:
             self.sim.step()
             self.viewer.render()
 
-            if np.linalg.norm(self.error) < 0.05:
+            if np.linalg.norm(self.error) < 0.1:
                 print("done")
                 reached_point = True
                 break 
@@ -191,14 +191,14 @@ class RobotSimulator:
             
 mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
 offset = [0,0,0,0,0,0,0]
-csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/random_selected_data.csv"
+csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/double_random_selected_data.csv"
 
 robot_sim = RobotSimulator(mjcf_path, offset,csv_path)
 
-sequence_count = 5000
+sequence_count = 500
 
 for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
     result = robot_sim.run_simulation()
     if result:  # run_simulation에서 True 반환 시에만 save_values 호출
         robot_sim.save_values()
-    robot_sim.reset_simulation()
+    # robot_sim.reset_simulation()
