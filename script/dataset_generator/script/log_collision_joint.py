@@ -39,15 +39,19 @@ class RobotSimulator:
 
         self.q_prev = [0 for i in range(7)]
         self.tau = None
-        self.tau_values = None
-        self.q_values = None
+        self.collision = None
+        # self.tau_values = None
+        # self.q_values = None
+        # self.collision_data = None
+
+        self.q_values = [[] for _ in range(7)]
+        self.tau_values = [[] for _ in range(7)]
+        self.collision_occurred = [[] for _ in range(7)]
+
         self.marked_positions = []
 
         self.desired_positions = self.load_desired_positions(csv_path)
         self.current_sequence_index = 0   
-
-        self.collision_occurred = 0 
-        self.collision_link_number = 0   
 
         self.cube_pos = [0,0,0]
 
@@ -73,20 +77,41 @@ class RobotSimulator:
         cube_id = self.sim.model.body_name2id("cube")
         self.sim.model.body_pos[cube_id] = self.cube_pos
 
-    def check_collision(self):
-        cube_geom_id = self.sim.model.geom_name2id("cube") 
+    # def check_collision(self):
+    #     # Initialize collision tracking for each joint at the start of each check
+    #     # self.collision_occurred = [0 for _ in range(len(self.joint_names))]  # Reset to zeros
 
+    #     cube_geom_id = self.sim.model.geom_name2id("cube")
+
+    #     for i in range(self.sim.data.ncon):
+    #         contact = self.sim.data.contact[i]
+    #         if contact.geom1 == cube_geom_id or contact.geom2 == cube_geom_id:
+    #             other_geom_id = contact.geom2 if contact.geom1 == cube_geom_id else contact.geom1
+    #             other_geom_name = self.sim.model.geom_id2name(other_geom_id)
+    #             if "link_col_" in other_geom_name:
+    #                 link_number = int(other_geom_name.split('_')[2])  
+    #                 if 0 <= link_number - 1 < len(self.collision_occurred):
+    #                     self.collision_occurred[link_number - 1] = 1
+
+    #     return self.collision_occurred
+    
+    def check_collision(self):
+        self.collision = [0] * 7  
+    
+        cube_geom_id = self.sim.model.geom_name2id("cube")
+    
         for i in range(self.sim.data.ncon):
             contact = self.sim.data.contact[i]
             if contact.geom1 == cube_geom_id or contact.geom2 == cube_geom_id:
                 other_geom_id = contact.geom2 if contact.geom1 == cube_geom_id else contact.geom1
                 other_geom_name = self.sim.model.geom_id2name(other_geom_id)
                 if "link_col_" in other_geom_name:
-                    self.collision_occurred = 1  
-                    self.collision_link_number = int(other_geom_name.split('_')[2])  # 'link_' 다음에 오는 번호 추출
-                    break  
+                    link_number = int(other_geom_name.split('_')[2])
+                    if 0 <= link_number - 1 < 7: 
+                        self.collision[link_number - 1] = 1
+    
+        return self.collision
 
-        return self.collision_occurred, self.collision_link_number
 
     def load_desired_positions(self, csv_path):
         """Load desired positions from a CSV file."""
@@ -175,9 +200,11 @@ class RobotSimulator:
         self.sim.reset()
 
     def reset_values(self):
-        self.q_values = [[] for _ in range(7)]
-        self.tau_values = [[] for _ in range(7)]
-        self.collision_occurred = 0 
+        # self.q_values = [[] for _ in range(7)]
+        # self.tau_values = [[] for _ in range(7)]
+        # self.collision_occurred = [[] for _ in range(7)]
+
+        self.collision_data = None
         self.collision_link_number = 0  
 
     def save_values(self):
@@ -186,14 +213,21 @@ class RobotSimulator:
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 rounded_q_values = [round(val, 6) for val in self.q_values[i]]
-                writer.writerow([self.collision_occurred, self.collision_link_number]+ rounded_q_values)
+                writer.writerow(rounded_q_values)
 
         for i in range(7):
             filename = os.path.join(self.target_data_folder, f"fre_joint_{i+1}.csv")
             with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 rounded_tau_values = [round(val, 6) for val in self.tau_values[i]]
-                writer.writerow([self.collision_occurred, self.collision_link_number]+ rounded_tau_values)
+                writer.writerow(rounded_tau_values)
+
+        for i in range(7):
+            filename = os.path.join(self.collision_data_folder, f"collision_joint_{i+1}.csv")
+            with open(filename, 'a', newline='') as file:
+                writer = csv.writer(file)
+                rounded_collision_values = [round(val, 1) for val in self.collision_occurred[i]]
+                writer.writerow(rounded_collision_values)
 
 
     def create_output_folder(self):
@@ -201,8 +235,10 @@ class RobotSimulator:
         base_folder = f"../csv/joint_data/collision_dataset/{current_time}"
         self.input_data_folder = os.path.join(base_folder, "input_data")
         self.target_data_folder = os.path.join(base_folder, "target_data")
+        self.collision_data_folder = os.path.join(base_folder, "collision")
         os.makedirs(self.input_data_folder, exist_ok=True)
         os.makedirs(self.target_data_folder, exist_ok=True)
+        os.makedirs(self.collision_data_folder, exist_ok=True)
 
     def run_simulation(self):
         # reached_point = False
@@ -241,6 +277,7 @@ class RobotSimulator:
                 self.angle[i] = self.angle[i] - self.offset[i]
                 self.q_values[i].append(self.angle[i])
                 self.tau_values[i].append(self.tau[i])
+                self.collision_occurred[i].append(self.collision[i])
 
             self.q_prev = self.angle
             self.sim.step()
@@ -254,16 +291,18 @@ class RobotSimulator:
         
         # return True  
             
-            
-mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
-offset = [0,0,0,0,0,0,0]
-csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/double_random_selected_data.csv"
+if __name__=="__main__":
+                
+    mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
+    offset = [0,0,0,0,0,0,0]
+    csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/double_random_selected_data.csv"
 
-robot_sim = RobotSimulator(mjcf_path, offset,csv_path)
+    robot_sim = RobotSimulator(mjcf_path, offset,csv_path)
 
-sequence_count = 1000
+    sequence_count = 3
 
-for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
-    result = robot_sim.run_simulation()
+    for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
+        result = robot_sim.run_simulation()
+        # robot_sim.reset_simulation()
+
     robot_sim.save_values()
-    # robot_sim.reset_simulation()

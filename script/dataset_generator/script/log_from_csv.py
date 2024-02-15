@@ -45,6 +45,9 @@ class RobotSimulator:
 
         self.desired_positions = self.load_desired_positions(csv_path)
         self.current_sequence_index = 0     
+    
+        self.collision_occurred = 0 
+        self.collision_link_number = 0   
 
         self.create_output_folder()
         self.reset_values()
@@ -138,14 +141,14 @@ class RobotSimulator:
 
     def create_output_folder(self):
         current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        base_folder = f"../csv/joint_data/temp/{current_time}"
+        base_folder = f"../csv/joint_data/new_dynamics/{current_time}"
         self.input_data_folder = os.path.join(base_folder, "input_data")
         self.target_data_folder = os.path.join(base_folder, "target_data")
         os.makedirs(self.input_data_folder, exist_ok=True)
         os.makedirs(self.target_data_folder, exist_ok=True)
 
     def run_simulation(self):
-        reached_point = False
+        # reached_point = False
 
         if self.current_sequence_index >= len(self.desired_positions):
             print("All sequences have been simulated.")
@@ -162,12 +165,12 @@ class RobotSimulator:
         while True: 
             current_time = time.time()
 
-            if current_time - start_time > 5:
-                if not reached_point:
-                    print("3 second passed")
-                    return False
-                else:
-                    break
+            if current_time - start_time > 1:
+                # if not reached_point:
+                #     print("3 second passed")
+                #     return False
+                # else:
+                break
 
             self.angle = self.sim.data.qpos.copy() 
             self.move_robot_to_position(self.x_desired)
@@ -181,12 +184,12 @@ class RobotSimulator:
             self.sim.step()
             self.viewer.render()
 
-            if np.linalg.norm(self.error) < 0.1:
-                print("done")
-                reached_point = True
-                break 
+        #     if np.linalg.norm(self.error) < 0.1:
+        #         print("done")
+        #         reached_point = True
+        #         break 
         
-        return True  
+        # return True  
             
             
 mjcf_path = "/home/robros/model_uncertainty/model/ROBROS/robot/base.xml"
@@ -195,10 +198,8 @@ csv_path = "/home/robros/model_uncertainty/script/visualize_workspace/double_ran
 
 robot_sim = RobotSimulator(mjcf_path, offset,csv_path)
 
-sequence_count = 500
+sequence_count = 20
 
 for sequence_number in tqdm(range(sequence_count), desc="Simulating Sequences"):
     result = robot_sim.run_simulation()
-    if result:  # run_simulation에서 True 반환 시에만 save_values 호출
-        robot_sim.save_values()
-    # robot_sim.reset_simulation()
+    robot_sim.save_values()
