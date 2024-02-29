@@ -1,0 +1,19 @@
+<mujoco model="ring_model">
+    <!-- <option gravity="0 0 0"/>  -->
+
+    <asset>
+        <mesh name="ring_mesh" file="/home/robros/model_uncertainty/model/ROBROS/robot/ring.stl" scale="0.0008 0.0008 0.0008"/>
+    </asset>
+
+    <worldbody>
+        <body name="mocap_ring" pos="0 0 1" mocap="true">
+            <geom type="mesh" mesh="ring_mesh" contype="0" conaffinity="0" rgba="0.5 0.5 0.5 0.0"/>
+        </body>
+        
+        <body name="physical_ring" pos="0 0 1">
+            <joint name="physical_ring_joint" type="free"/>
+            <geom type="mesh" class="cls" mesh="ring_mesh" rgba="0.8 0.8 0.8 1"/>
+            <inertial pos="0 0 0" mass="10000" diaginertia="10000 10000 10000"/>
+        </body>
+    </worldbody>
+</mujoco>

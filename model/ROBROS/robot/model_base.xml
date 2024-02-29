@@ -1,0 +1,32 @@
+<mujoco model="scene">
+    <option timestep='0.0005' iterations="50" tolerance="1e-5" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="30" noslip_tolerance="1e-5"/>
+    <!-- <compiler angle="radian" meshdir="../meshes/" balanceinertia="true"/> -->
+    <size njmax="8000" nconmax="4000"/>
+    <default>
+        <motor ctrllimited="false"/>
+        <default class="default_joint">
+            <joint damping="0.01"  frictionloss="6" />
+        </default> 
+        <default class="viz">
+            <geom contype="0" conaffinity="0" group="1" type="mesh"/>
+        </default>
+        <default class="cls">
+            <geom group="2" type="mesh"/>
+        </default>
+        <default class="FTsensor">
+            <site type="cylinder" size="0.005 0.005" group="4" rgba=".1 .1 .9 1"/>
+        </default>
+        <default class="shg20_100_2so">
+            <joint damping="0.0248" frictionloss="9.9"/>
+        </default>  <!-- rated torque = 52 Nm -->
+
+
+    </default>
+
+
+    <visual>
+        <quality shadowsize="2048" offsamples="16"/>
+        <map stiffness="10" znear="0.05"/>
+    </visual>
+</mujoco>
+
