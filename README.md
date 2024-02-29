@@ -6,6 +6,15 @@ This repository is about operating a robotic arm in the MuJoCo environment. It i
 - Loading and simulating a 7-dof robotic arm's MJCF model in the MuJoCo environment.
 - Saving the data obtained from the simulation into csv files.
  
+#### Collision
+
+<img src="images/collision.gif" width="700" height="400">
+
+#### Free Motion
+
+<img src="images/free_motion.gif" width="700" height="400">
+
+
 ## How to Use
  
 ```bash
@@ -88,3 +97,5 @@ The structure of the generated files is as follows:
     |--viz_all.py
     |--viz.py
 ```
+
+
