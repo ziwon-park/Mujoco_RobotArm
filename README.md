@@ -62,29 +62,29 @@ The structure of the generated files is as follows:
 
 ```bash
 |--model/
-	|--KINOVA/
-	|--ROBROS/
-		|--arenas/
-		|--robot/
-			|--.stl
-			|--base.xml
-			|--mjmodel.xml
-			|--model.urdf
-		|--textures/
+    |--KINOVA/
+    |--ROBROS/
+	|--arenas/
+    |--robot/
+        |--.stl
+        |--base.xml
+        |--mjmodel.xml
+        |--model.urdf
+	|--textures/
 |--dataset_generator/
 	|--script/
-		|--gravity/
-			|--utils/
-				|--__init__.py
-				|--compute.py # use this
-			|--collision.py 
-			|--free_motion.py
-		|--no_gravity/
-		|--visualization/
-			|--visualize.ipynb
+        |--gravity/
+            |--utils/
+                |--__init__.py
+                |--compute.py # use this
+            |--collision.py 
+            |--free_motion.py
+        |--no_gravity/
+        |--visualization/
+            |--visualize.ipynb
 |--visualize_workspace/
-	|--utils/
-		|--plot.ipynb
-		|--viz_all.py
-		|--viz.py
+    |--utils/
+        |--plot.ipynb
+    |--viz_all.py
+    |--viz.py
 ```
