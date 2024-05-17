@@ -1,6 +1,0 @@
-<mujoco>
-    <!-- <option gravity="0 0 0"/>  -->
-    <include file="mjmodel.xml"/>
-    <include file="../arenas/empty_arena.xml"/>
-    <!-- <include file="ring.xml"/> -->
-</mujoco>
